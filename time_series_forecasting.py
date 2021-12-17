@@ -395,7 +395,7 @@ print(pred_df_all[:])
 # +--------------------------------------+
 def save_file(pred_path, predicts):
     print("Saving result to {}".format(pred_path))
-    with open(pred_path, 'w') as f:
+    with open(pred_path, 'w', encoding='utf8', newline='') as f:
         write = csv.writer(f)
         write.writerow(['id', 'sales'])
         for i, pred in enumerate(predicts):
