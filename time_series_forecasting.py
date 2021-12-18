@@ -70,25 +70,6 @@ train_data = train_df[-1782*31*5: ]
 DAY_ROWS = 1782     # number of row in one day
 NUM_DAYS = 1684     # number of total day
 
-# +--------------------------------------+
-# |         Label Encoding               |
-# +--------------------------------------+
-
-labelencoder = LabelEncoder()
-
-print("Here is the new family")
-print("Here is the shape: {}".format(train_data[['family']].to_numpy().ravel().shape))
-print(labelencoder.fit_transform(train_data[['family']]))
-#train_data[['family']] = labelencoder.fit_transform(train_data[['family']].to_numpy().ravel())
-
-#test_data = labelencoder.fit_transform(test_df[['family']])
-
-train_label = train_data[["sales"]]         # 兩個中括號是為了讓輸出格式變成 dataframe
-train_data = train_data[['store_nbr', "sales"]]
-
-test_data = test_df
-print(test_data['store_nbr'])
-test_data = test_data[['store_nbr']]
 
 # +--------------------------------------+
 # |         Normalization                |
@@ -101,6 +82,27 @@ train_data[["store_nbr"]] = minmax_store.fit_transform(train_data[["store_nbr"]]
 train_data[["sales"]] = minmax_sales.fit_transform(train_data[["sales"]])
 
 print(train_data)
+
+
+# +--------------------------------------+
+# |         Label Encoding               |
+# +--------------------------------------+
+
+# labelencoder = LabelEncoder()
+
+# print("Here is the new family")
+# print("Here is the shape: {}".format(train_data[['family']].to_numpy().ravel().shape))
+# print(labelencoder.fit_transform(train_data[['family']]))
+#train_data[['family']] = labelencoder.fit_transform(train_data[['family']].to_numpy().ravel())
+
+#test_data = labelencoder.fit_transform(test_df[['family']])
+
+train_label = train_data[["sales"]]         # 兩個中括號是為了讓輸出格式變成 dataframe
+train_data = train_data[['store_nbr', "sales"]]
+
+test_data = test_df
+print(test_data['store_nbr'])
+test_data = test_data[['store_nbr']]
 
 # +--------------------------------------+
 # |      Turn into the shape I want      |
