@@ -181,7 +181,7 @@ train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=Fals
 # In our case, N is the period of Date.
 
 INPUT_DIM = len(train_data[0])
-N_NEURONS = len(train_data[0])        # This will be the output dimension of LSTM
+N_NEURONS = 100                       # This will be the output dimension of LSTM
 NUM_LAYERS = 3
 OUTPUT_DIM = len(train_label[0])      # This is the output dimension we want
 
