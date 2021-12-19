@@ -25,11 +25,9 @@ of 12/25/2021.
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-from torchvision import models
 from tqdm import tqdm
 
 import pandas as pd
@@ -41,8 +39,6 @@ import time
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-
-import matplotlib.pyplot as plt
 
 # ===========================================================
 
@@ -57,7 +53,7 @@ test_df = pd.read_csv(directory_path+"test.csv")
 
 
 # 只留最後 5個月的資料
-train_data = train_df[-1782*31*5: ]
+train_data = train_df
 
 # +--------------------------------------+
 # |         Analyze the Data             |
@@ -81,8 +77,6 @@ minmax_sales = preprocessing.MinMaxScaler()
 train_data[["store_nbr"]] = minmax_store.fit_transform(train_data[["store_nbr"]])
 train_data[["sales"]] = minmax_sales.fit_transform(train_data[["sales"]])
 
-print(train_data)
-
 
 # +--------------------------------------+
 # |         Label Encoding               |
@@ -98,10 +92,9 @@ print(train_data)
 #test_data = labelencoder.fit_transform(test_df[['family']])
 
 train_label = train_data[["sales"]]         # 兩個中括號是為了讓輸出格式變成 dataframe
-train_data = train_data[['store_nbr', "sales"]]
+train_data = train_data[['store_nbr', 'sales']]
 
 test_data = test_df
-print(test_data['store_nbr'])
 test_data = test_data[['store_nbr']]
 
 # +--------------------------------------+
@@ -131,8 +124,6 @@ new_train_data, new_train_label = create_data(train_data, train_label)
 # new_train_data (list)
 # new_train_label (list)
 
-print(new_train_data)
-
 train_data = new_train_data       # (list)
 train_label = new_train_label     # (list)
 
@@ -147,7 +138,7 @@ train_label = new_train_label     # (list)
 # +--------------------------------------+
 
 SEQ_LEN = 30
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 
 class RNNDataset(Dataset):
     def __init__(self, data, label, seq_len):     # seq_len is the length of each input
@@ -183,8 +174,8 @@ train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=Fals
 # In our case, N is the period of Date.
 
 INPUT_DIM = len(train_data[0])
-N_NEURONS = 100                       # This will be the output dimension of LSTM
-NUM_LAYERS = 3
+N_NEURONS = 1000                       # This will be the output dimension of LSTM
+NUM_LAYERS = 10
 OUTPUT_DIM = len(train_label[0])      # This is the output dimension we want
 
 class RNNModel(nn.Module):
@@ -201,6 +192,7 @@ class RNNModel(nn.Module):
             hidden_size=hidden_dim,
             num_layers = num_layers,
             batch_first=True,
+            dropout=0.2,
             #bidirectional=True,
         )
         # **加一個 bidirection
@@ -226,8 +218,7 @@ class RNNModel(nn.Module):
         # output dim: (Batch Size, Sequence Length, Hidden Dimension)
         # hidden dim: (Num Layers, Batch Size, Hidden Dimension)
         # cell dim: (Num Layers, Batch Size, Hidden Dimension)
-        output = output[:, -1, :]    # Just want only one dimention of output
-        #output = output.reshape(-1, self.hidden_dim)    # Just want only one dimention of output
+        output = output[:, -1, :]    # Just want the last sequence of LSTM
         output = self.fc(output)
 
         return output
@@ -358,6 +349,7 @@ input_list = new_train_data[-30: ]
 pred_df_all = pd.DataFrame(columns=["sales"])
 
 for i in range(future_days):
+    print(i)
     pred_list = []
     input_list = input_list[-30: ]            # 都只取最後30個
     input_dataset = torch.FloatTensor(input_list)
@@ -401,6 +393,7 @@ def save_file(pred_path, predicts):
         write = csv.writer(f)
         write.writerow(['id', 'sales'])
         for i, pred in enumerate(predicts):
+            print(pred)
             write.writerow([i+3000888, pred])
 
 pred_path = directory_path+"prediction.csv"
