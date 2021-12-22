@@ -50,10 +50,38 @@ directory_path = "data/"
 
 train_df = pd.read_csv(directory_path+"train.csv")
 test_df = pd.read_csv(directory_path+"test.csv")
+oil_df = pd.read_csv(directory_path+"oil.csv")          # 油價資訊
 
 
-# 只留最後 5個月的資料
+# +---------------------------------------+
+# |         train_df + 油價                |
+# +---------------------------------------+
+train_df['dcoilwtico'] = 0              # 在train_df新增油價欄位
+oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(oil_df.dcoilwtico.mean())      # 把油價缺失值補上平均
+
+# 這個要跑超久...，因為是 3000887 x 1217 的複雜度
+def add_oil(df, oil_df):
+    for i in range(oil_df.shape[0]):
+        filt = (df['date'] == oil_df['date'][i])
+        df.loc[filt, ['dcoilwtico']] = oil_df['dcoilwtico'][i]
+    
+    return df
+
+start = time.time()
+train_df = add_oil(train_df, oil_df)
+end = time.time()
+print("The duration of mapping the oil to train data: {}s".format(end-start))
+
+test_df = add_oil(test_df, oil_df)
+
+print(train_df)
+print(test_df)
+
+# 本來想說只留最後 5個月的資料
+# 後來發現要全部都訓練 效果比較好
 train_data = train_df
+test_data = test_df
+
 
 # +--------------------------------------+
 # |         Analyze the Data             |
@@ -73,9 +101,11 @@ NUM_DAYS = 1684     # Number of total day
 
 minmax_store = preprocessing.MinMaxScaler()
 minmax_sales = preprocessing.MinMaxScaler()
+minmax_oil = preprocessing.MinMaxScaler()
 
 train_data[["store_nbr"]] = minmax_store.fit_transform(train_data[["store_nbr"]])
 train_data[["sales"]] = minmax_sales.fit_transform(train_data[["sales"]])
+train_data[['dcoilwtico']] = minmax_oil.fit_transform(train_data[['dcoilwtico']])
 
 
 # +--------------------------------------+
@@ -92,20 +122,20 @@ train_data[["sales"]] = minmax_sales.fit_transform(train_data[["sales"]])
 #test_data = labelencoder.fit_transform(test_df[['family']])
 
 train_label = train_data[["sales"]]         # 兩個中括號是為了讓輸出格式變成 dataframe
-train_data = train_data[['sales']]
+train_data = train_data[['dcoilwtico', 'sales']]
+print(train_data)
 
-test_data = test_df
-test_data = test_data[[]]
+test_data = test_data[['dcoilwtico']]
 
 # +--------------------------------------+
 # |      Turn into the shape I want      |
+# +--------------------------------------+
 # |                                      |
 # | From (3000888, 3) to (3000888/1782, 3*1782) = (1684, 5346)
 # |                                      |
 # |     也就是把每一天的資訊
 # |     都拉成在同一列裡面
 # |     而不是分成好幾列
-# +--------------------------------------+
 
 def create_data(train_data, train_label):
     new_train_data = []
@@ -370,7 +400,7 @@ for i in range(future_days):
 
     pred_array = test_reshape(pred_list, i)        # i 用來取得要 test_data 的第幾天
     # pred_array 已經轉成 array
-    # 因為要 input_list 裡面都是儲存 array type
+    # 因為要加入倒 input_list 裡面都是儲存 array type
 
     input_list.append(pred_array)
 
