@@ -63,8 +63,8 @@ train_data = train_df
 # If we want to use past 15 days data to predict 16th day, then we need to input 15*1782 data!!
 
 # Train data contains 1684 days.
-DAY_ROWS = 1782     # number of row in one day
-NUM_DAYS = 1684     # number of total day
+DAY_ROWS = 1782     # Number of row in one day
+NUM_DAYS = 1684     # Number of total day
 
 
 # +--------------------------------------+
@@ -92,10 +92,10 @@ train_data[["sales"]] = minmax_sales.fit_transform(train_data[["sales"]])
 #test_data = labelencoder.fit_transform(test_df[['family']])
 
 train_label = train_data[["sales"]]         # 兩個中括號是為了讓輸出格式變成 dataframe
-train_data = train_data[['store_nbr', 'sales']]
+train_data = train_data[['sales']]
 
 test_data = test_df
-test_data = test_data[['store_nbr']]
+test_data = test_data[[]]
 
 # +--------------------------------------+
 # |      Turn into the shape I want      |
@@ -175,7 +175,7 @@ train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=Fals
 
 INPUT_DIM = len(train_data[0])
 N_NEURONS = 1000                       # This will be the output dimension of LSTM
-NUM_LAYERS = 10
+NUM_LAYERS = 5
 OUTPUT_DIM = len(train_label[0])      # This is the output dimension we want
 
 class RNNModel(nn.Module):
@@ -313,7 +313,7 @@ class RMSLELoss(nn.Module):
 # +--------------------------------------+
 # |             Training                 |
 # +--------------------------------------+
-N_EPOCHS = 10
+N_EPOCHS = 15
 LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-6
 
