@@ -48,7 +48,10 @@ import matplotlib.pyplot as plt
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-"""## **File**"""
+
+# +-------------------------------------+
+# |             File                    |
+# +-------------------------------------+
 
 directory_path = "data/"
 
