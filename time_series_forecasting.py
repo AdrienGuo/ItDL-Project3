@@ -45,9 +45,9 @@ from sklearn.preprocessing import LabelEncoder
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-# +--------------------------------+ #
-# |            File                | #
-# +--------------------------------+ #
+# +---------------------------------------+
+# |                 File                  |
+# +---------------------------------------+
 
 directory_path = "data/"
 
@@ -67,8 +67,6 @@ oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(0)                             # �
 
 temp_train_df = pd.merge(train_df, oil_df, on="date", how="left")
 temp_test_df = pd.merge(test_df, oil_df, on="date", how="left")
-print(temp_train_df)
-print(temp_test_df)
 
 '''
 後來發現有上面那個 merge 的方法，快超級多的
@@ -92,9 +90,6 @@ def add_oil(df, oil_df):
 # 補0
 train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(0)
 test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(0)
-
-print(train_df)
-print(test_df)
 
 # 本來想說只留最後 5個月的資料
 # 後來發現要全部都訓練 效果比較好
@@ -122,10 +117,11 @@ minmax_store = preprocessing.MinMaxScaler()
 minmax_sales = preprocessing.MinMaxScaler()
 minmax_oil = preprocessing.MinMaxScaler()
 
-train_data[["store_nbr"]] = minmax_store.fit_transform(train_data[["store_nbr"]])
 train_data[["sales"]] = minmax_sales.fit_transform(train_data[["sales"]])
 train_data[['dcoilwtico']] = minmax_oil.fit_transform(train_data[['dcoilwtico']])
 
+# 超白癡，忘記 test_data 也要 Normalize
+test_data[['dcoilwtico']] = minmax_oil.transform(test_data[['dcoilwtico']])
 
 # +--------------------------------------+
 # |         Label Encoding               |
@@ -145,15 +141,15 @@ train_data = train_data[['dcoilwtico', 'sales']]
 
 test_data = test_data[['dcoilwtico']]
 
-# +--------------------------------------+
-# |      Turn into the shape I want      |
-# +--------------------------------------+
-# |                                      |
-# | From (3000888, 3) to (3000888/1782, 3*1782) = (1684, 5346)
-# |                                      |
-# |     也就是把每一天的資訊
-# |     都拉成在同一列裡面
-# |     而不是分成好幾列
+
+# +-------------------------------------------+
+# |      Turn into the shape LSTM insist      |
+# +-------------------------------------------+
+# |
+# | From (3000888, 3) to (3000888/1782, 2*1782) = (1684, 5346)
+# | 也就是把每一天的資訊
+# | 都拉成在同一列裡面
+# | 而不是分成好幾列
 
 def create_data(train_data, train_label):
     new_train_data = []
@@ -169,29 +165,31 @@ def create_data(train_data, train_label):
     return new_train_data, new_train_label
 
 new_train_data, new_train_label = create_data(train_data, train_label)
+print(new_train_data[-5:])
 # new_train_data (list)
 # new_train_label (list)
 
-train_data = new_train_data       # (list)
-train_label = new_train_label     # (list)
+# train_data = new_train_data       # (list)
+# train_label = new_train_label     # (list)
 
 # +--------------------------------------+
 # |             資料分割                  |
 # +--------------------------------------+
 
 train_data, val_data, train_label, val_label = train_test_split(new_train_data, new_train_label, train_size=0.8, shuffle=False)
+print(val_data[-5:])
 
 # +--------------------------------------+
 # |     DataSet and DataLoader           |
 # +--------------------------------------+
 
-SEQ_LEN = 16
+SEQ_LEN = 30            # 設定參考 SEQ_LEN 天的資料
 BATCH_SIZE = 16
 
 class RNNDataset(Dataset):
     def __init__(self, data, label, seq_len):     # seq_len is the length of each input
         # in this case, if seq_len=3, then it will input 3-day info. in each input
-        data = np.array(data)           # torch 告訴我說，如果不先轉換成 array 的話會很慢...
+        data = np.array(data)           # torch 告訴我說，如果不先轉換成 array 的話，在轉成 tensor 的時候會很慢...
         label = np.array(label)
         self.data = torch.FloatTensor(data)
         self.label = torch.FloatTensor(label)
@@ -224,7 +222,7 @@ val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, n
 # In our case, N is the period of Date.
 
 INPUT_DIM = len(train_data[0])
-N_NEURONS = 50                       # This will be the output dimension of LSTM
+N_NEURONS = 100                       # This will be the output dimension of LSTM
 NUM_LAYERS = 3
 OUTPUT_DIM = len(train_label[0])      # This is the output dimension we want
 
@@ -333,15 +331,15 @@ class Optimization():
             batch_val_loss = np.mean(val_loss)
             self.val_losses.append(batch_val_loss)
         
-            print(f"[{epoch+1:3}/{n_epochs}]\
-                    Train loss: {batch_train_loss:.4f} | Val loss: {batch_val_loss:.4f}")
+            print(f"[{epoch+1:2}/{n_epochs}]\
+                    Train loss: {batch_train_loss} | Val loss: {batch_val_loss}")
             print(f"Total Time: {end-start}s")
 
             # 發現 val_loss 一下子就變 0 了
             # 所以加這個也沒用...
-            # if batch_val_loss < max_loss:
-            #     max_loss = batch_val_loss
-            #     torch.save(self.model.state_dict(), model_path)
+            if batch_val_loss < max_loss:
+                max_loss = batch_val_loss
+                torch.save(self.model.state_dict(), model_path)
             torch.save(self.model.state_dict(), model_path)
     
     def evaluate(self, test_loader):
@@ -390,7 +388,6 @@ opt.train(train_dataloader, val_dataloader, n_epochs=N_EPOCHS)
 # +--------------------------------------+
 # |                 Test                 |
 # +--------------------------------------+
-pred_list = []
 FUTURE_DAYS = 16
 
 def test_reshape(data, i):
@@ -407,40 +404,43 @@ def test_reshape(data, i):
 input_list = val_data[-30: ]
 pred_df_all = pd.DataFrame(columns=["sales"])
 
-for i in range(FUTURE_DAYS):
-    pred_list = []
-    input_list = input_list[-30: ]            # 都只取最後30個
-    input_array = np.array(input_list)
-    input_dataset = torch.FloatTensor(input_array)
+def predict(FUTURE_DAYS, opt, input_list):
+    for i in range(FUTURE_DAYS):
+        pred_list = []
+        input_list = input_list[-30: ]            # 都只取最後30個
+        input_array = np.array(input_list)
+        input_dataset = torch.FloatTensor(input_array)
 
-    input_dataset = input_dataset.unsqueeze(0)
-    # 2d -> 3d
+        input_dataset = input_dataset.unsqueeze(0)
+        # 2d -> 3d
 
-    input_dataloader = DataLoader(input_dataset, batch_size=1, shuffle=False, num_workers=0)
+        input_dataloader = DataLoader(input_dataset, batch_size=1, shuffle=False, num_workers=0)
 
-    pred = opt.evaluate(input_dataloader)
-    
-    # 格式轉換
-    for ele in pred[0]:
-        pred = ele.item()
-        if pred < 0:
-            pred = 0
-        pred_list.append(pred)
+        pred = opt.evaluate(input_dataloader)
+        
+        # 格式轉換
+        for ele in pred[0]:
+            pred = ele.item()
+            if pred < 0:
+                pred = 0
+            pred_list.append(pred)
 
-    pred_array = test_reshape(pred_list, i)        # i 用來取得要 test_data 的第幾天
-    # pred_array 已經轉成 array
-    # 因為要加入倒 input_list 裡面都是儲存 array type
+        pred_array = test_reshape(pred_list, i)        # i 用來取得要 test_data 的第幾天
+        # pred_array 就是預測出來下一天的 sales 資訊
+        # pred_array 已經轉成 array
+        # 因為要加入倒 input_list 裡面都是儲存 array type
 
-    input_list.append(pred_array)
+        input_list.append(pred_array)
 
-    pred_df = pd.DataFrame(pred_list, columns=["sales"])
-    pred_df[["sales"]] = minmax_sales.inverse_transform(pred_df[["sales"]])
-    
-    pred_df_all = pd.concat([pred_df_all, pred_df], axis=0, ignore_index=True)
-    
-    i+=1
+        # 將預測出來的結果放入 pred dataframe 裡面
+        pred_df = pd.DataFrame(pred_list, columns=["sales"])
+        pred_df[["sales"]] = minmax_sales.inverse_transform(pred_df[["sales"]])
+        pred_df_all = pd.concat([pred_df_all, pred_df], axis=0, ignore_index=True)
+        
+    print(pred_df_all)
+    return pred_df_all
 
-print(pred_df_all[:])
+pred_df_all = predict(FUTURE_DAYS, opt, input_list)
 
 
 # +--------------------------------------+
