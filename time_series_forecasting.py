@@ -44,7 +44,9 @@ from sklearn.preprocessing import LabelEncoder
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-"""## **File**"""
+# +--------------------------------+ #
+# |            File                | #
+# +--------------------------------+ #
 
 directory_path = "data/"
 
@@ -56,8 +58,22 @@ oil_df = pd.read_csv(directory_path+"oil.csv")          # 油價資訊
 # +---------------------------------------+
 # |         train_df + 油價                |
 # +---------------------------------------+
-train_df['dcoilwtico'] = 0              # 在train_df新增油價欄位
-oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(oil_df.dcoilwtico.mean())      # 把油價缺失值補上平均
+# train_df['dcoilwtico'] = 0              # 在train_df新增油價欄位
+# test_df['dcoilwtico'] = 0               # 在test_df新增油價欄位
+
+# oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(oil_df.dcoilwtico.mean())      # 把油價缺失值補上平均
+oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(0)                             # 把油價缺失值補 0
+
+temp_train_df = pd.merge(train_df, oil_df, on="date", how="left")
+temp_test_df = pd.merge(test_df, oil_df, on="date", how="left")
+print(temp_train_df)
+print(temp_test_df)
+
+'''
+後來發現有上面那個 merge 的方法，快超級多的
+我自己這個要跑 160s
+不知道為甚麼這兩個方法會差這麼多...
+感謝仲瑜~
 
 # 這個要跑超久...，因為是 3000887 x 1217 的複雜度
 def add_oil(df, oil_df):
@@ -66,13 +82,15 @@ def add_oil(df, oil_df):
         df.loc[filt, ['dcoilwtico']] = oil_df['dcoilwtico'][i]
     
     return df
+'''
 
-start = time.time()
-train_df = add_oil(train_df, oil_df)
-end = time.time()
-print("The duration of mapping the oil to train data: {}s".format(end-start))
+# 補平均
+# train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(temp_train_df.dcoilwtico.mean())
+# test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(temp_test_df.dcoilwtico.mean())
 
-test_df = add_oil(test_df, oil_df)
+# 補0
+train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(0)
+test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(0)
 
 print(train_df)
 print(test_df)
@@ -123,7 +141,6 @@ train_data[['dcoilwtico']] = minmax_oil.fit_transform(train_data[['dcoilwtico']]
 
 train_label = train_data[["sales"]]         # 兩個中括號是為了讓輸出格式變成 dataframe
 train_data = train_data[['dcoilwtico', 'sales']]
-print(train_data)
 
 test_data = test_data[['dcoilwtico']]
 
@@ -158,21 +175,23 @@ train_data = new_train_data       # (list)
 train_label = new_train_label     # (list)
 
 # +--------------------------------------+
-# |         資料分割                      |
+# |             資料分割                  |
 # +--------------------------------------+
 
-#train_data, val_data, train_label, val_label = train_test_split(new_train_data, new_train_label, train_size=0.8, shuffle=False)
+train_data, val_data, train_label, val_label = train_test_split(new_train_data, new_train_label, train_size=0.8, shuffle=False)
 
 # +--------------------------------------+
 # |     DataSet and DataLoader           |
 # +--------------------------------------+
 
-SEQ_LEN = 30
-BATCH_SIZE = 32
+SEQ_LEN = 16
+BATCH_SIZE = 16
 
 class RNNDataset(Dataset):
     def __init__(self, data, label, seq_len):     # seq_len is the length of each input
         # in this case, if seq_len=3, then it will input 3-day info. in each input
+        data = np.array(data)           # torch 告訴我說，如果不先轉換成 array 的話會很慢...
+        label = np.array(label)
         self.data = torch.FloatTensor(data)
         self.label = torch.FloatTensor(label)
         #self.input = torch.from_numpy(input).float()
@@ -186,10 +205,10 @@ class RNNDataset(Dataset):
         return self.data[index: index+self.seq_len], self.label[index+self.seq_len]
 
 train_dataset = RNNDataset(train_data, train_label, SEQ_LEN)
-#val_dataset = RNNDataset(val_data, val_label, SEQ_LEN)
+val_dataset = RNNDataset(val_data, val_label, SEQ_LEN)
 
 train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
-#val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
+val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
 
 # +--------------------------------------+
@@ -204,8 +223,8 @@ train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=Fals
 # In our case, N is the period of Date.
 
 INPUT_DIM = len(train_data[0])
-N_NEURONS = 1000                       # This will be the output dimension of LSTM
-NUM_LAYERS = 5
+N_NEURONS = 50                       # This will be the output dimension of LSTM
+NUM_LAYERS = 3
 OUTPUT_DIM = len(train_label[0])      # This is the output dimension we want
 
 class RNNModel(nn.Module):
@@ -223,11 +242,11 @@ class RNNModel(nn.Module):
             num_layers = num_layers,
             batch_first=True,
             dropout=0.2,
-            #bidirectional=True,
+            bidirectional=True
         )
-        # **加一個 bidirection
+        # 加一個 bidirection
         # if batch_first: (Batch Size, Sequence Length, Input Dimension)
-        self.fc = nn.Linear(hidden_dim, output_dim)
+        self.fc = nn.Linear(hidden_dim*2, output_dim)
         
         # bidirectional: make this RNN bidirectional this is very useful in many applications/
         #                where the next sequences can help previous sequences in learning
@@ -235,8 +254,8 @@ class RNNModel(nn.Module):
     
     # Initialize hidden weight
     def init_hidden(self, x):
-        hidden0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(DEVICE)
-        cell0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(DEVICE)
+        hidden0 = torch.zeros(self.num_layers*2, x.size(0), self.hidden_dim).to(DEVICE)
+        cell0 = torch.zeros(self.num_layers*2, x.size(0), self.hidden_dim).to(DEVICE)
         # hidden = torch.zeros(self.num_layers, self.batch_size, self.input_dim)
         # 不能寫成上面這行是因為 batch_size 可能會不固定 (當資料長度不能被 batch_size 整除的時候)
         return hidden0, cell0
@@ -244,7 +263,7 @@ class RNNModel(nn.Module):
     def forward(self, x):
         #print(f"Here is the x: {x.size()}")
         hidden0, cell0 = self.init_hidden(x)
-        output, (hidden, cell) = self.lstm(x)
+        output, (_hidden, _cell) = self.lstm(x, (hidden0, cell0))
         # output dim: (Batch Size, Sequence Length, Hidden Dimension)
         # hidden dim: (Num Layers, Batch Size, Hidden Dimension)
         # cell dim: (Num Layers, Batch Size, Hidden Dimension)
@@ -260,6 +279,8 @@ class RNNModel(nn.Module):
 # -------- Optimization (class) ----------
 # Try a new way to build the train block. <br>
 # Reference: https://towardsdatascience.com/building-rnn-lstm-and-gru-for-time-series-using-pytorch-a46e5b094e7b
+
+model_path = "./model.pth"
 
 class Optimization():
     def __init__(self, model, loss_fn, optimizer):
@@ -281,8 +302,8 @@ class Optimization():
 
         return loss.item()
     
-    def train(self, train_loader, n_epochs):
-        model_path = "./model.pth"
+    def train(self, train_loader, val_loader, n_epochs):
+        max_loss = 100
 
         for epoch in range(n_epochs):
             start = time.time()
@@ -297,72 +318,79 @@ class Optimization():
                 train_loss.append(loss)
             end = time.time()
 
-            # val_loss = []
-            # self.model.eval()
+            val_loss = []
+            self.model.eval()
+            for data, labels in val_loader:
+                data = data.to(DEVICE)
+                labels = labels.to(DEVICE)
+                y_hat = self.model(data)
+                loss = self.loss_fn(y_hat, labels).item()
+                val_loss.append(loss)
 
-            # for data, labels in val_loader:
-            #     data = data.to(DEVICE)
-            #     labels = labels.to(DEVICE)
-            #     y_hat = self.model(data)
-            #     loss = self.loss_fn(y_hat, labels).item()
-            #     val_loss.append(loss)
-
-            training_loss = np.mean(train_loss)     # calculate the mean of all the batches in this epoch
-            self.train_losses.append(training_loss)
-            # valing_loss = np.mean(val_loss)
-            # self.val_losses.append(valing_loss)
+            batch_train_loss = np.mean(train_loss)     # calculate the mean of all the batches in this epoch
+            self.train_losses.append(batch_train_loss)
+            batch_val_loss = np.mean(val_loss)
+            self.val_losses.append(batch_val_loss)
         
-            print(f"[{epoch+1:3}/{n_epochs}] Training loss: {training_loss:.4f}")
-            # print(f"[{epoch+1:3}/{n_epochs}] Training loss: {valing_loss:.4f}")
-            # print(f"Total Time: {end-start}s")
+            print(f"[{epoch+1:3}/{n_epochs}]\
+                    Train loss: {batch_train_loss:.4f} | Val loss: {batch_val_loss:.4f}")
+            print(f"Total Time: {end-start}s")
 
-        torch.save(self.model.state_dict(), model_path)
+            # 發現 val_loss 一下子就變 0 了
+            # 所以加這個也沒用...
+            # if batch_val_loss < max_loss:
+            #     max_loss = batch_val_loss
+            #     torch.save(self.model.state_dict(), model_path)
+            torch.save(self.model.state_dict(), model_path)
     
     def evaluate(self, test_loader):
-        # type(data) is Tensor
+        model = RNNModel(batch_size=BATCH_SIZE, input_dim=INPUT_DIM, hidden_dim=N_NEURONS, 
+                 num_layers=NUM_LAYERS, output_dim=OUTPUT_DIM).to(DEVICE)
+        model.load_state_dict(torch.load(model_path))
         with torch.no_grad():
             for data in test_loader:
+                # type(data) is Tensor
                 data = data.to(DEVICE)
-                self.model.eval()
-                pred_hat = self.model(data)
+                model.eval()
+                pred_hat = model(data)
 
             return pred_hat
 
 
-# Criterion
-class RMSLELoss(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.mse = nn.MSELoss()
+# # Criterion
+# class RMSLELoss(nn.Module):
+#     def __init__(self):
+#         super().__init__()
+#         self.mse = nn.MSELoss()
         
-    def forward(self, pred, actual):
+#     def forward(self, pred, actual):
 #        print(f"This is pred: {pred}")
 #        print(f"This is actual: {actual}")
-        return torch.sqrt(self.mse(torch.log(pred + 1), torch.log(actual + 1)))
+#        return torch.sqrt(self.mse(torch.log(pred + 1), torch.log(actual + 1)))
 
 # +--------------------------------------+
 # |             Training                 |
 # +--------------------------------------+
 N_EPOCHS = 15
-LEARNING_RATE = 1e-4
-WEIGHT_DECAY = 1e-6
+# LEARNING_RATE = 1e-4
+# WEIGHT_DECAY = 1e-6
 
 model = RNNModel(batch_size=BATCH_SIZE, input_dim=INPUT_DIM, hidden_dim=N_NEURONS, 
                  num_layers=NUM_LAYERS, output_dim=OUTPUT_DIM).to(DEVICE)
 
 loss_fn = nn.MSELoss(reduction="mean")
-optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+optimizer = optim.Adam(model.parameters())
 
 opt = Optimization(model=model, loss_fn=loss_fn, optimizer=optimizer)
 
-opt.train(train_dataloader, n_epochs=N_EPOCHS)
+opt.train(train_dataloader, val_dataloader, n_epochs=N_EPOCHS)
 
 
 # +--------------------------------------+
 # |                 Test                 |
 # +--------------------------------------+
 pred_list = []
-future_days = 16
+FUTURE_DAYS = 16
 
 def test_reshape(data, i):
     data = pd.DataFrame(data)
@@ -375,14 +403,14 @@ def test_reshape(data, i):
     
     return data
 
-input_list = new_train_data[-30: ]
+input_list = val_data[-30: ]
 pred_df_all = pd.DataFrame(columns=["sales"])
 
-for i in range(future_days):
-    print(i)
+for i in range(FUTURE_DAYS):
     pred_list = []
     input_list = input_list[-30: ]            # 都只取最後30個
-    input_dataset = torch.FloatTensor(input_list)
+    input_array = np.array(input_list)
+    input_dataset = torch.FloatTensor(input_array)
 
     input_dataset = input_dataset.unsqueeze(0)
     # 2d -> 3d
