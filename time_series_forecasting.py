@@ -62,8 +62,8 @@ oil_df = pd.read_csv(directory_path+"oil.csv")          # 油價資訊
 # train_df['dcoilwtico'] = 0              # 在train_df新增油價欄位
 # test_df['dcoilwtico'] = 0               # 在test_df新增油價欄位
 
-# oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(oil_df.dcoilwtico.mean())      # 把油價缺失值補上平均
-oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(0)                             # 把油價缺失值補 0
+oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(oil_df.dcoilwtico.mean())      # 把油價缺失值補上平均
+# oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(0)                             # 把油價缺失值補 0
 
 temp_train_df = pd.merge(train_df, oil_df, on="date", how="left")
 temp_test_df = pd.merge(test_df, oil_df, on="date", how="left")
@@ -84,12 +84,12 @@ def add_oil(df, oil_df):
 '''
 
 # 補平均
-# train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(temp_train_df.dcoilwtico.mean())
-# test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(temp_test_df.dcoilwtico.mean())
+train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(temp_train_df.dcoilwtico.mean())
+test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(temp_test_df.dcoilwtico.mean())
 
 # 補0
-train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(0)
-test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(0)
+# train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(0)
+# test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(0)
 
 # 本來想說只留最後 5個月的資料
 # 後來發現要全部都訓練 效果比較好
@@ -157,7 +157,7 @@ def create_data(train_data, train_label):
     for i in range(0, train_data.shape[0]//1782, 1):
         new_data = train_data[i*1782: (i+1)*1782].to_numpy().ravel()
         new_label = train_label[i*1782: (i+1)*1782].to_numpy().ravel()
-        # 把同一天的 feature 都拉成一條長長的 sequence
+        # 把同一天的 feature 都拉成一條長長的 
 
         new_train_data.append(new_data)
         new_train_label.append(new_label)
@@ -165,19 +165,17 @@ def create_data(train_data, train_label):
     return new_train_data, new_train_label
 
 new_train_data, new_train_label = create_data(train_data, train_label)
-print(new_train_data[-5:])
 # new_train_data (list)
 # new_train_label (list)
 
-# train_data = new_train_data       # (list)
-# train_label = new_train_label     # (list)
+train_data = new_train_data       # (list)
+train_label = new_train_label     # (list)
 
 # +--------------------------------------+
 # |             資料分割                  |
 # +--------------------------------------+
 
-train_data, val_data, train_label, val_label = train_test_split(new_train_data, new_train_label, train_size=0.8, shuffle=False)
-print(val_data[-5:])
+# train_data, val_data, train_label, val_label = train_test_split(new_train_data, new_train_label, train_size=0.8, shuffle=False)
 
 # +--------------------------------------+
 # |     DataSet and DataLoader           |
@@ -204,19 +202,15 @@ class RNNDataset(Dataset):
         return self.data[index: index+self.seq_len], self.label[index+self.seq_len]
 
 train_dataset = RNNDataset(train_data, train_label, SEQ_LEN)
-val_dataset = RNNDataset(val_data, val_label, SEQ_LEN)
+# val_dataset = RNNDataset(val_data, val_label, SEQ_LEN)
 
 train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
-val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
+# val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
 
 
 # +--------------------------------------+
 # |             RNNModel                 |
 # +--------------------------------------+
-
-# **bidirectional**: make this RNN bidirectional this is very useful in many applications where the next sequences can help previous sequences in learning
-
-# <a href="https://imgur.com/BnntzYd"><img src="https://i.imgur.com/BnntzYd.png" title="source: imgur.com" /></a>
 
 # N time steps (horizontally)
 # In our case, N is the period of Date.
@@ -266,7 +260,7 @@ class RNNModel(nn.Module):
         # output dim: (Batch Size, Sequence Length, Hidden Dimension)
         # hidden dim: (Num Layers, Batch Size, Hidden Dimension)
         # cell dim: (Num Layers, Batch Size, Hidden Dimension)
-        output = output[:, -1, :]    # Just want the last sequence of LSTM
+        output = output[:, -1, :]    # Just want the last sequence of LSTM output
         output = self.fc(output)
 
         return output
@@ -301,8 +295,8 @@ class Optimization():
 
         return loss.item()
     
-    def train(self, train_loader, val_loader, n_epochs):
-        max_loss = 100
+    def train(self, train_loader, n_epochs):
+        # max_loss = 100
 
         for epoch in range(n_epochs):
             start = time.time()
@@ -317,29 +311,27 @@ class Optimization():
                 train_loss.append(loss)
             end = time.time()
 
-            val_loss = []
-            self.model.eval()
-            for data, labels in val_loader:
-                data = data.to(DEVICE)
-                labels = labels.to(DEVICE)
-                y_hat = self.model(data)
-                loss = self.loss_fn(y_hat, labels).item()
-                val_loss.append(loss)
+            # val_loss = []
+            # self.model.eval()
+            # for data, labels in val_loader:
+            #     data = data.to(DEVICE)
+            #     labels = labels.to(DEVICE)
+            #     y_hat = self.model(data)
+            #     loss = self.loss_fn(y_hat, labels).item()
+            #     val_loss.append(loss)
 
             batch_train_loss = np.mean(train_loss)     # calculate the mean of all the batches in this epoch
             self.train_losses.append(batch_train_loss)
-            batch_val_loss = np.mean(val_loss)
-            self.val_losses.append(batch_val_loss)
+            # batch_val_loss = np.mean(val_loss)
+            # self.val_losses.append(batch_val_loss)
         
-            print(f"[{epoch+1:2}/{n_epochs}]\
-                    Train loss: {batch_train_loss} | Val loss: {batch_val_loss}")
+            print(f"[{epoch+1:2}/{n_epochs}] | Train loss: {batch_train_loss}")
             print(f"Total Time: {end-start}s")
 
-            # 發現 val_loss 一下子就變 0 了
-            # 所以加這個也沒用...
-            if batch_val_loss < max_loss:
-                max_loss = batch_val_loss
-                torch.save(self.model.state_dict(), model_path)
+            # if batch_val_loss < max_loss:
+            #     max_loss = batch_val_loss
+            #     print("Save model with Val loss: {}".format(batch_val_loss))
+            #     torch.save(self.model.state_dict(), model_path)
             torch.save(self.model.state_dict(), model_path)
     
     def evaluate(self, test_loader):
@@ -356,17 +348,6 @@ class Optimization():
             return pred_hat
 
 
-# # Criterion
-# class RMSLELoss(nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#         self.mse = nn.MSELoss()
-        
-#     def forward(self, pred, actual):
-#        print(f"This is pred: {pred}")
-#        print(f"This is actual: {actual}")
-#        return torch.sqrt(self.mse(torch.log(pred + 1), torch.log(actual + 1)))
-
 # +--------------------------------------+
 # |             Training                 |
 # +--------------------------------------+
@@ -382,7 +363,7 @@ optimizer = optim.Adam(model.parameters())
 
 opt = Optimization(model=model, loss_fn=loss_fn, optimizer=optimizer)
 
-opt.train(train_dataloader, val_dataloader, n_epochs=N_EPOCHS)
+opt.train(train_dataloader, n_epochs=N_EPOCHS)
 
 
 # +--------------------------------------+
@@ -401,10 +382,8 @@ def test_reshape(data, i):
     
     return data
 
-input_list = val_data[-30: ]
-pred_df_all = pd.DataFrame(columns=["sales"])
-
 def predict(FUTURE_DAYS, opt, input_list):
+    pred_df_all = pd.DataFrame(columns=["sales"])
     for i in range(FUTURE_DAYS):
         pred_list = []
         input_list = input_list[-30: ]            # 都只取最後30個
@@ -436,10 +415,12 @@ def predict(FUTURE_DAYS, opt, input_list):
         pred_df = pd.DataFrame(pred_list, columns=["sales"])
         pred_df[["sales"]] = minmax_sales.inverse_transform(pred_df[["sales"]])
         pred_df_all = pd.concat([pred_df_all, pred_df], axis=0, ignore_index=True)
-        
+    
     print(pred_df_all)
+
     return pred_df_all
 
+input_list = train_data[-30: ]
 pred_df_all = predict(FUTURE_DAYS, opt, input_list)
 
 
@@ -452,7 +433,6 @@ def save_file(pred_path, predicts):
         write = csv.writer(f)
         write.writerow(['id', 'sales'])
         for i, pred in enumerate(predicts):
-            print(pred)
             write.writerow([i+3000888, pred])
 
 pred_path = directory_path+"prediction.csv"
