@@ -62,8 +62,8 @@ oil_df = pd.read_csv(directory_path+"oil.csv")          # 油價資訊
 # train_df['dcoilwtico'] = 0              # 在train_df新增油價欄位
 # test_df['dcoilwtico'] = 0               # 在test_df新增油價欄位
 
-# oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(oil_df.dcoilwtico.mean())      # 把油價缺失值補上平均
-oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(0)                             # 把油價缺失值補 0
+oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(oil_df.dcoilwtico.mean())      # 把油價缺失值補上平均
+# oil_df.dcoilwtico = oil_df.dcoilwtico.fillna(0)                             # 把油價缺失值補 0
 
 temp_train_df = pd.merge(train_df, oil_df, on="date", how="left")
 temp_test_df = pd.merge(test_df, oil_df, on="date", how="left")
@@ -84,12 +84,12 @@ def add_oil(df, oil_df):
 '''
 
 # 補平均
-# train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(temp_train_df.dcoilwtico.mean())
-# test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(temp_test_df.dcoilwtico.mean())
+train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(temp_train_df.dcoilwtico.mean())
+test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(temp_test_df.dcoilwtico.mean())
 
 # 補0
-train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(0)
-test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(0)
+# train_df['dcoilwtico'] = temp_train_df.dcoilwtico.fillna(0)
+# test_df['dcoilwtico'] = temp_test_df.dcoilwtico.fillna(0)
 
 # 本來想說只留最後 5個月的資料
 # 後來發現要全部都訓練 效果比較好
@@ -355,17 +355,6 @@ class Optimization():
 
             return pred_hat
 
-
-# # Criterion
-# class RMSLELoss(nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#         self.mse = nn.MSELoss()
-        
-#     def forward(self, pred, actual):
-#        print(f"This is pred: {pred}")
-#        print(f"This is actual: {actual}")
-#        return torch.sqrt(self.mse(torch.log(pred + 1), torch.log(actual + 1)))
 
 # +--------------------------------------+
 # |             Training                 |
