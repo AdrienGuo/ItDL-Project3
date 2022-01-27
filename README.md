@@ -3,9 +3,7 @@ Introduction to Deep Learning - Project 3
 
 # 1. Data Analysis
 
-在 train.csv 這裡面，有 date, store_nbr, family, sales, onpromotion 共 5 種特徵，date 就是日
-期、store_nbr 是店家的編號、family 是商品分類、sales 是銷售量、onpromotion 代表是否在
-促銷。我們發現每一天總共有 1782 筆資料、總共有 1684 天。
+在 train.csv 這裡面，有 date, store_nbr, family, sales, onpromotion 共 5 種特徵，date 就是日期、store_nbr 是店家的編號、family 是商品分類、sales 是銷售量、onpromotion 代表是否在促銷。我們發現每一天總共有 1782 筆資料、總共有 1684 天。
 
 
 # 2. Data Pre-processing
