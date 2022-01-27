@@ -40,10 +40,12 @@ from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
+import wandb
+
 # ===========================================================
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
+wandb.init(project="ItDL-Project3", entity="adrien88")
 
 # +---------------------------------------+
 # |                 File                  |
@@ -297,7 +299,7 @@ class Optimization():
     
     def train(self, train_loader, n_epochs):
         # max_loss = 100
-
+        loss = 0
         for epoch in range(n_epochs):
             start = time.time()
             train_loss = []     # initialize batch_losses
@@ -310,6 +312,7 @@ class Optimization():
                 loss = self.train_step(data, labels)
                 train_loss.append(loss)
             end = time.time()
+            wandb.log({"loss": loss})
 
             # val_loss = []
             # self.model.eval()
@@ -354,6 +357,11 @@ class Optimization():
 N_EPOCHS = 15
 # LEARNING_RATE = 1e-4
 # WEIGHT_DECAY = 1e-6
+wandb.config = {
+  "learning_rate": 0.001,
+  "epochs": N_EPOCHS,
+  "batch_size": BATCH_SIZE
+}
 
 model = RNNModel(batch_size=BATCH_SIZE, input_dim=INPUT_DIM, hidden_dim=N_NEURONS, 
                  num_layers=NUM_LAYERS, output_dim=OUTPUT_DIM).to(DEVICE)
@@ -365,6 +373,7 @@ opt = Optimization(model=model, loss_fn=loss_fn, optimizer=optimizer)
 
 opt.train(train_dataloader, n_epochs=N_EPOCHS)
 
+wandb.watch(model)
 
 # +--------------------------------------+
 # |                 Test                 |
