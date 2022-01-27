@@ -17,8 +17,10 @@ Introduction to Deep Learning - Project 3
 我們使用 LSTM 當作我們的模型架構，會使用 LSTM 是因為這次的資料是跟時間序列相關，而 LSTM 就是拿來處理與序列相關的模型之一，效果也比最一般 RNN 模型還要好，因為 LSTM 可以擁有長時間的記憶 ，但 RNN 是沒有辦法的。LSTM 的架構圖如圖片</br>
 　橫軸方向代表 Input 的數量，圖片在時間序列的資料裡面代表的就是時間長度(總共幾天)；縱軸的方向代表 LSTM 的 Layer 數量，這兩個都是可以自行設定的；最上面的 Output 是 LSTM 的輸出，因此 LSTM 模型可以是多對多或是多對一的模型，這也是由使用者自行設定。
 
+![](https://media.springernature.com/full/springer-static/image/art%3A10.1186%2Fs13638-019-1511-4/MediaObjects/13638_2019_1511_Fig9_HTML.png)
+
 ## 3.2 Our Model Architecture
-我們考慮前 30 天的資料，因此橫軸長度設定為 30、Layer 數量設為　3、Output 我們只取最後一個輸出，因為是考慮前 30 天的資訊後，運算出第 31 天的資訊，因此是多對一的模型。<br>
+我們考慮前 30 天的資料，因此橫軸長度設定為 30、Layer 數量設為 3、Output 我們只取最後一個輸出，因為是考慮前 30 天的資訊後，運算出第 31 天的資訊，因此是多對一的模型。<br>
 　另外，每個 LSTM 還可以設置它的神經元個數(hidden_dim)、dropout、bidirectional，最後一個 bidirectional 的意思是讓 LSTM 可以雙向的來訓練資料，而不會因為前面的資料無法參考的後面的資料而讓訓練效果不好。我們的設定：<br>
 ```python
 self.lstm = nn.LSTM(
